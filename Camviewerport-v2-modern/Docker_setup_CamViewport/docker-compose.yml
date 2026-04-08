@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Main CamViewport Web Application
+  camviewport:
+    build:
+      context: ./camviewport
+      dockerfile: Dockerfile
+      target: production
+    container_name: camviewport-web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=info
+    volumes:
+      - ./data/config:/app/data
+    networks:
+      - camview-network
+    labels:
+      - "com.camviewport.service=web"
+
+  # Go2RTC - WebRTC/RTSP/RTMP Gateway (Optional)
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: go2rtc
+    restart: unless-stopped
+    ports:
+      - "1984:1984"  # Web UI
+      - "8554:8554"  # RTSP
+      - "8555:8555"  # WebRTC
+    volumes:
+      - ./config/go2rtc.yaml:/config/go2rtc.yaml
+    networks:
+      - camview-network
+    profiles:
+      - go2rtc
+
+  # MediaMTX - Alternative Media Server (Optional)
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    restart: unless-stopped
+    ports:
+      - "8889:8889"  # Web UI
+      - "8554:8554"  # RTSP
+      - "8888:8888"  # WebRTC
+      - "1935:1935"  # RTMP
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml
+    networks:
+      - camview-network
+    profiles:
+      - mediamtx
+
+  # Electron App Builder (On-demand)
+  electron-builder:
+    build:
+      context: ./electron-client
+      dockerfile: Dockerfile.builder
+    container_name: camviewport-electron-builder
+    volumes:
+      - ./electron-client:/app
+      - ./builds:/app/dist
+      - electron-cache:/root/.cache/electron
+      - electron-node-modules:/app/node_modules
+    environment:
+      - ELECTRON_BUILDER_CACHE=/root/.cache/electron
+    profiles:
+      - build
+    command: npm run build
+
+networks:
+  camview-network:
+    driver: bridge
+
+volumes:
+  electron-cache:
+  electron-node-modules:
