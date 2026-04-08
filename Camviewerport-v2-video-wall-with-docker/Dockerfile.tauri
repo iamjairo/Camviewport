@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Tauri 2.x Desktop Client — Docker Build Environment
+#
+# PURPOSE: Build a native Tauri desktop app (.AppImage / .deb on Linux,
+#          .exe on Windows cross-compile, .dmg on macOS — macOS requires
+#          building ON macOS; use this image for Linux targets only).
+#
+# USAGE:
+#   # Build the image:
+#   docker build -f Dockerfile.tauri -t camviewport-tauri-builder .
+#
+#   # Run the build (output lands in src-tauri/target/release/bundle/):
+#   docker run --rm \
+#     -v "$(pwd)/src-tauri/target:/app/src-tauri/target" \
+#     camviewport-tauri-builder
+#
+#   # Resulting artefacts are in ./src-tauri/target/release/bundle/
+# ─────────────────────────────────────────────────────────────────────────────
+FROM ubuntu:22.04 AS tauri-builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+
+# System deps required by Tauri 2.x on Linux
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl wget git \
+    build-essential \
+    libssl-dev pkg-config \
+    # WebKit / GTK for Tauri
+    libwebkit2gtk-4.1-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    # Node.js 20 via NodeSource
+    ca-certificates gnupg \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Rust (stable)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain stable --profile minimal \
+ && rustup target add x86_64-unknown-linux-gnu
+
+WORKDIR /app
+
+# Copy package manifests first for layer caching
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+
+# Copy Tauri manifests and install Rust deps
+COPY src-tauri/Cargo.toml src-tauri/Cargo.lock* ./src-tauri/
+RUN mkdir -p src-tauri/src && echo 'fn main(){}' > src-tauri/src/main.rs
+WORKDIR /app/src-tauri
+RUN cargo fetch
+WORKDIR /app
+
+# Copy rest of the source
+COPY . .
+
+# Build the Tauri app (release)
+RUN npm run tauri build -- --bundles appimage,deb
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Output stage — copy artefacts to a clean image for easy extraction
+# ─────────────────────────────────────────────────────────────────────────────
+FROM scratch AS artefacts
+COPY --from=tauri-builder /app/src-tauri/target/release/bundle /bundle

@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1 — Build camviewport (C / X11 / mpv)
+# Clones from https://github.com/ItsNotGoodName/camviewport
+# ─────────────────────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libmpv-dev \
+    libx11-dev \
+    git \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+RUN git clone --depth 1 --recurse-submodules \
+    https://github.com/ItsNotGoodName/camviewport.git .
+
+RUN make build
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2 — Runtime with Xvfb + x11vnc + supervisor
+#   Exposes the X11 display on VNC :5900 so the video wall can be
+#   viewed remotely or via noVNC without a physical monitor.
+# ─────────────────────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    x11vnc \
+    x11-utils \
+    libmpv2 \
+    mpv \
+    supervisor \
+    procps \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled binary
+COPY --from=builder /build/dist/camviewport_Linux_* /usr/local/bin/camviewport
+
+# Supervisor config
+COPY camviewport/supervisord.conf /etc/supervisor/conf.d/camviewport.conf
+
+# Default camviewport config (override via bind-mount)
+COPY camviewport/camviewport.ini /etc/camviewport/camviewport.ini
+
+ENV DISPLAY=:99
+ENV VNC_PASSWORD=camviewport
+ENV XVFB_RESOLUTION=1920x1080x24
+
+EXPOSE 5900
+
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/camviewport.conf"]

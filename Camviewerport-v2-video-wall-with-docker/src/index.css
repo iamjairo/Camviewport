@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 224 27% 10%;
+    --foreground: 210 40% 98%;
+    --card: 224 24% 13%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 24% 13%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 213 94% 68%;
+    --primary-foreground: 224 27% 10%;
+    --secondary: 223 21% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 21% 18%;
+    --muted-foreground: 216 15% 55%;
+    --accent: 223 21% 18%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 43%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 223 18% 20%;
+    --input: 223 18% 20%;
+    --ring: 213 94% 68%;
+    --radius: 0.6rem;
+    --brand: 213 94% 68%;
+    --brand-accent: 186 90% 58%;
+    --highlight: 264 83% 71%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-color: #09090b;
+  }
+
+  * { box-sizing: border-box; }
+}
+
+@layer utilities {
+  .app-shell-grid {
+    @apply grid min-h-screen lg:grid-cols-[260px_1fr];
+  }
+
+  .panel-surface {
+    @apply border border-border/70 bg-card/90 shadow-sm backdrop-blur-sm;
+  }
+
+  .animate-fade-in-safe {
+    animation: fade-in-safe 0.4s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-slide-up-safe {
+    animation: slide-up-safe 0.4s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-scale-in-safe {
+    animation: scale-in-safe 0.3s ease-out forwards;
+    opacity: 0;
+  }
+
+  .gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--brand)) 0%, hsl(var(--brand-accent)) 100%);
+  }
+
+  .glass-card {
+    background: hsl(var(--card) / 0.72);
+    backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(135deg, hsl(var(--brand)), hsl(var(--brand-accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@keyframes fade-in-safe {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slide-up-safe {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in-safe {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
